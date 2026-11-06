@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arbiter PRO — калькулятор вилок</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+
+<style>
+  :root {
+    --bg-color: #050505;
+    --card-bg: rgba(20, 20, 25, 0.85);
+    --border-color: rgba(255, 255, 255, 0.15);
+    --text-main: #ffffff;
+    --text-muted: #b0b0b8;
+    --accent: #6366f1;
+    --accent-glow: rgba(99, 102, 241, 0.4);
+    --success: #10b981;
+    --success-glow: rgba(16, 185, 129, 0.3);
+    --danger: #ef4444;
+    --danger-glow: rgba(239, 68, 68, 0.3);
+    --warn: #f59e0b;
+    --blur: blur(20px);
+  }
+
+  @media (prefers-reduced-motion: reduce), (max-width: 580px) {
+    :root { --blur: none; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow-x: hidden;
+    padding: 20px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 720px;
+    padding: 20px 0 40px;
+  }
+
+  .glass-card {
+    background: var(--card-bg);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  h1 span {
+    font-size: 12px;
+    background: var(--accent);
+    color: #ffffff;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    box-shadow: 0 0 20px var(--accent-glow);
+    -webkit-text-fill-color: #fff;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    font-weight: 500;
+  }
+
+  .rate-panel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 8px 16px;
+  }
+  .rate-panel label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .rate-panel input {
+    width: 80px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    text-align: center;
+  }
+  .rate-panel span {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 28px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    flex: 1;
+    min-width: 90px;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    user-select: none;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 15px var(--accent-glow);
+  }
+
+  .section { display: none; animation: fadeIn 0.4s ease; }
+  .section.active { display: block; }
+  @media (prefers-reduced-motion: reduce) { .section { animation: none; } }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-full { grid-column: span 2; }
+  @media (max-width: 580px) {
+    .grid, .grid-3 { grid-template-columns: 1fr; gap: 12px; }
+    .grid-full { grid-column: span 1; }
+    .glass-card { padding: 24px; }
+    .container { padding: 20px 0; }
+  }
+
+  .input-wrapper { display: flex; flex-direction: column; }
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 13px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-main);
+    font-size: 15px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+
+  select { font-family: 'Inter', sans-serif; cursor: pointer; font-size: 13px; padding: 13px 8px; }
+  input::placeholder { color: #666; font-family: 'Inter', sans-serif; font-weight: 400; }
+  input:hover, select:hover { border-color: rgba(255, 255, 255, 0.4); }
+  input:focus, select:focus {
+    border-color: var(--accent);
+    background: rgba(0, 0, 0, 0.8);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .row-label {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .btn-reset {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+  .result-box {
+    margin-top: 28px;
+    display: none;
+  }
+  .result-box.visible { display: block; }
+
+  .stats-grid { display: grid; gap: 10px; margin-bottom: 18px; }
+
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 13px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .stat-label { font-size: 13px; color: #d1d5db; font-weight: 500; }
+  .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: #fff; text-align: right; }
+  .stat-value .plus { color: #34d399; text-shadow: 0 0 10px var(--success-glow); }
+  .stat-converted { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .final-result {
+    padding: 22px;
+    border-radius: 16px;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 40px var(--success-glow);
+    transition: all 0.4s;
+  }
+
+  .final-result.bad {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 40px var(--danger-glow);
+  }
+
+  .final-result.warn {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
+    border-color: rgba(245, 158, 11, 0.5);
+    box-shadow: 0 0 40px rgba(245, 158, 11, 0.3);
+  }
+
+  .final-title {
+    font-size: 12px;
+    color: #e5e7eb;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .final-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 38px;
+    font-weight: 800;
+    color: #34d399;
+    line-height: 1;
+  }
+
+  .final-result.bad .final-value { color: #f87171; }
+  .final-result.warn .final-value { color: #fbbf24; }
+
+  .final-hint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #d1d5db;
+    line-height: 1.5;
+  }
+
+  .final-hint b { color: #fff; font-family: 'JetBrains Mono', monospace; }
+
+  .outcomes { display: grid; gap: 6px; margin-top: 12px; }
+
+  .outcome {
+    display: flex;
+    justify-content: space-between;
+    padding: 9px 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
+  .outcome span:first-child { color: var(--text-muted); }
+  .outcome span:last-child { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .outcome.neg span:last-child { color: #f87171; }
+  .outcome.pos span:last-child { color: #34d399; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+  .btn {
+    flex: 1;
+    min-width: 130px;
+    padding: 13px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 4px 15px var(--accent-glow);
+  }
+  .btn-primary:hover:not(:disabled) { background: #5558e8; border-color: #5558e8; }
+
+  .btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
+  }
+  .btn-danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.25); }
+
+  .btn-small { flex: 0 0 auto; min-width: auto; padding: 7px 11px; font-size: 12px; }
+
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .history-title { font-size: 18px; font-weight: 700; }
+  .history-title .count { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-left: 8px; }
+
+  .history-empty { text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 14px; }
+
+  .history-table {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  .history-table::-webkit-scrollbar { width: 6px; }
+  .history-table::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+
+  .deal {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 12px;
+  }
+
+  .deal-type {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: rgba(99, 102, 241, 0.25);
+    color: #a5b4fc;
+    min-width: 70px;
+    text-align: center;
+  }
+
+  .deal-type.free { background: rgba(139, 92, 246, 0.25); color: #c4b5fd; }
+  .deal-type.arb3 { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; }
+  .deal-type.loss { background: rgba(239, 68, 68, 0.25); color: #fca5a5; }
+
+  .deal-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .deal-main { font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .deal-date { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+  .deal-profit {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .deal-profit.pos { color: #34d399; }
+  .deal-profit.neg { color: #f87171; }
+
+  .deal-del {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 3px 7px;
+    border-radius: 5px;
+    line-height: 1;
+  }
+  .deal-del:hover { color: #f87171; background: rgba(239, 68, 68, 0.15); }
+
+  @media (max-width: 580px) {
+    .deal { grid-template-columns: auto 1fr auto; }
+    .deal-del { grid-column: 1 / -1; justify-self: end; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="glass-card">
+    <div class="header-row">
+      <div>
+        <h1>Arbiter <span>PRO</span></h1>
+        <div class="subtitle">Вилки 2/3 плеча · Фрибеты · Учёт шага, комиссии и кросс-курсов</div>
+      </div>
+      <div class="rate-panel">
+        <label>Курс $ / € к ₽</label>
+        <input type="text" id="global-rate" placeholder="90.00" inputmode="decimal" oninput="recalcAll()">
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="arb2">Вилки (2)</div>
+      <div class="tab" data-tab="arb3">Вилки (3)</div>
+      <div class="tab" data-tab="free">Фрибеты</div>
+    </div>
+
+    <!-- ===================== ВИЛКИ 2 ПЛЕЧА ===================== -->
+    <div class="section active" id="sec-arb2">
+      <div class="grid">
+        <div class="row-label">
+          <span>Банк и параметры</span>
+          <button class="btn-reset" data-reset="arb2">Сбросить</button>
+        </div>
+
+        <div class="input-wrapper grid-full">
+          <label for="a2-bank">Общий банк (в базовой валюте)</label>
+          <input type="text" id="a2-bank" placeholder="10000" inputmode="decimal" oninput="calcArb2()">
+        </div>
+
+        <div class="input-wrapper">
+          <label for="a2-margin">Резерв на проскальзывание (%)</label>
+          <input type="text" id="a2-margin" placeholder="0" inputmode="decimal" oninput="calcArb2()">
+        </div>
+
+        <div class="row-label">Плечо 1</div>
+
+        <div class="input-wrapper grid-full">
+          <label for="a2-k1">Кеф 1</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="a2-k1" placeholder="2.10" inputmode="decimal" oninput="calcArb2()">
+            <select id="a2-curr1" onchange="calcArb2()" style="width: 80px;">
+              <option value="₽">₽</option>
+              <option value="$">$</option>
+              <option value="€">€</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="input-wrapper">
+          <label for="a2-comm1">Комиссия БК (%)</label>
+          <input type="text" id="a2-comm1" placeholder="0" value="0" inputmode="decimal" oninput="calcArb2()">
+        </div>
+
+        <div class="row-label">Плечо 2</div>
+
+        <div class="input-wrapper grid-full">
+          <label for="a2-k2">Кеф 2</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="a2-k2" placeholder="2.05" inputmode="decimal" oninput="calcArb2()">
+            <select id="a2-curr2" onchange="calcArb2()" style="width: 80px;">
+              <option value="₽">₽</option>
+              <option value="$">$</option>
+              <option value="€">€</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="input-wrapper">
+          <label for="a2-comm2">Комиссия БК (%)</label>
+          <input type="text" id="a2-comm2" placeholder="0" value="0" inputmode="decimal" oninput="calcArb2()">
+        </div>
+      </div>
+
+      <div class="result-box" id="a2-res">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">Ставка 1:</span>
+            <div style="text-align: right;">
+              <div class="stat-value" id="a2-bet1">—</div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Ставка 2:</span>
+            <div style="text-align: right;">
+              <div class="stat-value" id="a2-bet2">—</div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Итого вложено (в базовой):</span>
+            <span class="stat-value" id="a2-total">—</span>
+          </div>
+        </div>
+
+        <div class="final-result" id="a2-final">
+          <div class="final-title" id="a2-title">Реальный профит (после округления)</div>
+          <div class="final-value" id="a2-profit">—</div>
+          <div class="final-hint" id="a2-hint"></div>
+          <div class="outcomes" id="a2-outcomes"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="a2-save" disabled>Сохранить сделку</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== ВИЛКИ 3 ПЛЕЧА ===================== -->
+    <div class="section" id="sec-arb3">
+      <div class="grid grid-3">
+        <div class="row-label">
+          <span>Банк и параметры</span>
+          <button class="btn-reset" data-reset="arb3">Сбросить</button>
+        </div>
+
+        <div class="input-wrapper grid-full">
+          <label for="a3-bank">Общий банк (в базовой валюте)</label>
+          <input type="text" id="a3-bank" placeholder="10000" inputmode="decimal" oninput="calcArb3()">
+        </div>
+
+        <div class="row-label">Плечо 1</div>
+        <div class="input-wrapper">
+          <label for="a3-k1">Кеф 1</label>
+          <div style="display:flex; gap:4px;">
+            <input type="text" id="a3-k1" placeholder="3.50" inputmode="decimal" oninput="calcArb3()">
+            <select id="a3-curr1" onchange="calcArb3()" style="width: 60px; padding: 8px;">
+              <option value="₽">₽</option><option value="$">$</option><option value="€">€</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <label for="a3-comm1">Комиссия (%)</label>
+          <input type="text" id="a3-comm1" placeholder="0" value="0" inputmode="decimal" oninput="calcArb3()">
+        </div>
+
+        <div class="row-label">Плечо 2</div>
+        <div class="input-wrapper">
+          <label for="a3-k2">Кеф 2</label>
+          <div style="display:flex; gap:4px;">
+            <input type="text" id="a3-k2" placeholder="3.40" inputmode="decimal" oninput="calcArb3()">
+            <select id="a3-curr2" onchange="calcArb3()" style="width: 60px; padding: 8px;">
+              <option value="₽">₽</option><option value="$">$</option><option value="€">€</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <label for="a3-comm2">Комиссия (%)</label>
+          <input type="text" id="a3-comm2" placeholder="0" value="0" inputmode="decimal" oninput="calcArb3()">
+        </div>
+
+        <div class="row-label">Плечо 3</div>
+        <div class="input-wrapper">
+          <label for="a3-k3">Кеф 3</label>
+          <div style="display:flex; gap:4px;">
+            <input type="text" id="a3-k3" placeholder="3.30" inputmode="decimal" oninput="calcArb3()">
+            <select id="a3-curr3" onchange="calcArb3()" style="width: 60px; padding: 8px;">
+              <option value="₽">₽</option><option value="$">$</option><option value="€">€</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <label for="a3-comm3">Комиссия (%)</label>
+          <input type="text" id="a3-comm3" placeholder="0" value="0" inputmode="decimal" oninput="calcArb3()">
+        </div>
+      </div>
+
+      <div class="result-box" id="a3-res">
+        <div class="stats-grid">
+          <div class="stat-item"><span class="stat-label">Ставка 1:</span><div class="stat-value" id="a3-bet1">—</div></div>
+          <div class="stat-item"><span class="stat-label">Ставка 2:</span><div class="stat-value" id="a3-bet2">—</div></div>
+          <div class="stat-item"><span class="stat-label">Ставка 3:</span><div class="stat-value" id="a3-bet3">—</div></div>
+          <div class="stat-item"><span class="stat-label">Итого вложено (в базовой):</span><span class="stat-value" id="a3-total">—</span></div>
+        </div>
+
+        <div class="final-result" id="a3-final">
+          <div class="final-title" id="a3-title">Реальный профит</div>
+          <div class="final-value" id="a3-profit">—</div>
+          <div class="final-hint" id="a3-hint"></div>
+          <div class="outcomes" id="a3-outcomes"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="a3-save" disabled>Сохранить сделку</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== ФРИБЕТЫ ===================== -->
+    <div class="section" id="sec-free">
+      <div class="grid">
+        <div class="row-label">
+          <span>Параметры фрибета</span>
+          <button class="btn-reset" data-reset="free">Сбросить</button>
+        </div>
+
+        <div class="input-wrapper grid-full">
+          <label for="f-bonus">Сумма фрибета (в валюте плеча 1)</label>
+          <input type="text" id="f-bonus" placeholder="1000" inputmode="decimal" oninput="calcFree()">
+        </div>
+
+        <div class="input-wrapper">
+          <label for="f-type">Тип фрибета</label>
+          <select id="f-type" onchange="calcFree()">
+            <option value="nr">Не возвращается</option>
+            <option value="r">Возвращается</option>
+          </select>
+        </div>
+
+        <div class="input-wrapper">
+          <label for="f-margin">Резерв (%)</label>
+          <input type="text" id="f-margin" placeholder="0" inputmode="decimal" oninput="calcFree()">
+        </div>
+
+        <div class="row-label">Плечо на фрибет</div>
+
+        <div class="input-wrapper">
+          <label for="f-k1">Кеф на фрибет (К1)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="f-k1" placeholder="2.10" inputmode="decimal" oninput="calcFree()">
+            <select id="f-curr1" onchange="calcFree()" style="width: 80px;">
+              <option value="₽">₽</option><option value="$">$</option><option value="€">€</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="input-wrapper">
+          <label for="f-comm1">Комиссия (%)</label>
+          <input type="text" id="f-comm1" placeholder="0" value="0" inputmode="decimal" oninput="calcFree()">
+        </div>
+
+        <div class="row-label">Плечо своими</div>
+
+        <div class="input-wrapper">
+          <label for="f-k2">Кеф (К2)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="f-k2" placeholder="1.70" inputmode="decimal" oninput="calcFree()">
+            <select id="f-curr2" onchange="calcFree()" style="width: 80px;">
+              <option value="₽">₽</option><option value="$">$</option><option value="€">€</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="input-wrapper">
+          <label for="f-comm2">Комиссия (%)</label>
+          <input type="text" id="f-comm2" placeholder="0" value="0" inputmode="decimal" oninput="calcFree()">
+        </div>
+      </div>
+
+      <div class="result-box" id="f-res">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">Ставка своими (К2):</span>
+            <div class="stat-value" id="f-bet2">—</div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Итого вложено (в базовой):</span>
+            <span class="stat-value" id="f-total">—</span>
+          </div>
+        </div>
+
+        <div class="final-result" id="f-final">
+          <div class="final-title" id="f-title">Реальный профит</div>
+          <div class="final-value" id="f-profit">—</div>
+          <div class="final-hint" id="f-hint"></div>
+          <div class="outcomes" id="f-outcomes"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="f-save" disabled>Сохранить сделку</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ИСТОРИЯ -->
+  <div class="glass-card">
+    <div class="history-header">
+      <div class="history-title">История сделок <span class="count" id="hist-count"></span></div>
+      <button class="btn btn-danger btn-small" id="hist-clear">Очистить всё</button>
+    </div>
+    <div class="history-empty" id="hist-empty">Пока пусто. Сохрани первую сделку — она появится здесь.</div>
+    <div class="history-table" id="hist-list"></div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  function parseNum(v) {
+    if (v === null || v === undefined) return NaN;
+    const s = String(v).trim().replace(',', '.');
+    if (s === '') return NaN;
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  // --- Базовая валюта для отображения (всегда ₽, если не задано иное) ---
+  let baseSymbol = '₽';
+  
+  function formatBase(n) {
+    return n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + baseSymbol;
+  }
+
+  function formatCustom(n, symbol) {
+    return n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + symbol;
+  }
+
+  // Отключение скролла колесиком
+  document.addEventListener('wheel', (e) => {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+      document.activeElement.blur();
+    }
+  }, { passive: true });
+
+  // --- Умное округление ---
+  function getSmartBets2(bank, rawBet1, rawBet2) {
+    const bankUnits = Math.floor(bank / 100);
+    if (bankUnits < 2) return { bet1: Math.round(rawBet1), bet2: Math.round(rawBet2) };
+
+    const total = rawBet1 + rawBet2;
+    let u1 = Math.round((rawBet1 / total) * bankUnits);
+    if (u1 === 0) u1 = 1;
+    if (u1 === bankUnits) u1 = bankUnits - 1;
+    let u2 = bankUnits - u1;
+    return { bet1: u1 * 100, bet2: u2 * 100 };
+  }
+
+  function getSmartBets3(bank, r1, r2, r3) {
+    const bankUnits = Math.floor(bank / 100);
+    if (bankUnits < 3) return { bet1: Math.round(r1), bet2: Math.round(r2), bet3: Math.round(r3) };
+
+    const total = r1 + r2 + r3;
+    let u1 = Math.round((r1 / total) * bankUnits);
+    let u2 = Math.round((r2 / total) * bankUnits);
+    let u3 = Math.round((r3 / total) * bankUnits);
+
+    let diff = (u1 + u2 + u3) - bankUnits;
+    while (diff > 0) {
+      if (u1 > 1 && u1 >= u2 && u1 >= u3) u1--;
+      else if (u2 > 1 && u2 >= u3) u2--;
+      else if (u3 > 1) u3--;
+      else break;
+      diff--;
+    }
+    while (diff < 0) { u1++; diff++; }
+    if (u1 === 0) { u1 = 1; u3--; }
+    if (u2 === 0) { u2 = 1; u3--; }
+    if (u3 === 0) { u3 = 1; u1--; }
+    return { bet1: u1 * 100, bet2: u2 * 100, bet3: u3 * 100 };
+  }
+
+  // Конвертация в базовую валюту (в рубли)
+  function toBase(val, currency) {
+    const rate = parseNum($('global-rate').value) || 1;
+    if (currency === baseSymbol) return val;
+    if (baseSymbol === '₽' && (currency === '$' || currency === '€')) return val * rate;
+    // Обратная конвертация (если базовая $, а плечо ₽)
+    if (currency === '₽' && (baseSymbol === '$' || baseSymbol === '€')) return val / rate;
+    return val; // по умолчанию 1 к 1 (например $ к €)
+  }
+
+  // Конвертация из базовой валюты в валюту плеча
+  function fromBase(val, currency) {
+    const rate = parseNum($('global-rate').value) || 1;
+    if (currency === baseSymbol) return val;
+    if (baseSymbol === '₽' && (currency === '$' || currency === '€')) return val / rate;
+    if (currency === '₽' && (baseSymbol === '$' || baseSymbol === '€')) return val * rate;
+    return val;
+  }
+
+  function payoutOf(bet, k, commissionPct) {
+    const comm = (commissionPct || 0) / 100;
+    return bet * k * (1 - comm);
+  }
+
+  // ============================================================
+  // СОХРАНЕНИЕ ПОЛЕЙ
+  // ============================================================
+  const FIELDS_KEY = 'arbiter_fields_v4';
+  const inputIds = [
+    'global-rate', 
+    'a2-bank', 'a2-margin', 'a2-k1', 'a2-comm1', 'a2-k2', 'a2-comm2',
+    'a3-bank', 'a3-k1', 'a3-comm1', 'a3-k2', 'a3-comm2', 'a3-k3', 'a3-comm3',
+    'f-bonus', 'f-margin', 'f-k1', 'f-comm1', 'f-k2', 'f-comm2'
+  ];
+  const selectIds = [
+    'a2-curr1', 'a2-curr2', 'a3-curr1', 'a3-curr2', 'a3-curr3', 'f-curr1', 'f-curr2', 'f-type'
+  ];
+
+  function saveFields() {
+    const data = {};
+    inputIds.forEach(id => { const el = $(id); if (el) data[id] = el.value; });
+    selectIds.forEach(id => { const el = $(id); if (el) data[id] = el.value; });
+    try { localStorage.setItem(FIELDS_KEY, JSON.stringify(data)); } catch(e){}
+  }
+
+  function loadFields() {
+    try {
+      const raw = localStorage.getItem(FIELDS_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      Object.keys(data).forEach(id => {
+        const el = $(id);
+        if (el) el.value = data[id];
+      });
+    } catch(e){}
+  }
+
+  // Обработчики сохранения
+  document.addEventListener('input', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') saveFields();
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.tagName === 'SELECT') saveFields();
+  });
+
+  // Сброс
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-reset');
+    if (!btn) return;
+    const type = btn.dataset.reset;
+    if (type === 'arb2') {
+      ['a2-bank','a2-margin','a2-k1','a2-comm1','a2-k2','a2-comm2'].forEach(id => $(id).value = '');
+      $('a2-curr1').value = '₽'; $('a2-curr2').value = '₽';
+      calcArb2();
+    } else if (type === 'arb3') {
+      ['a3-bank','a3-k1','a3-comm1','a3-k2','a3-comm2','a3-k3','a3-comm3'].forEach(id => $(id).value = '');
+      $('a3-curr1').value = '₽'; $('a3-curr2').value = '₽'; $('a3-curr3').value = '₽';
+      calcArb3();
+    } else if (type === 'free') {
+      ['f-bonus','f-margin','f-k1','f-comm1','f-k2','f-comm2'].forEach(id => $(id).value = '');
+      $('f-curr1').value = '₽'; $('f-curr2').value = '₽';
+      $('f-type').value = 'nr';
+      calcFree();
+    }
+    saveFields();
+  });
+
+  function recalcAll() {
+    calcArb2(); calcArb3(); calcFree(); saveFields();
+  }
+  window.recalcAll = recalcAll;
+
+  const state = {
+    a2: { valid: false, snapshot: null },
+    a3: { valid: false, snapshot: null },
+    free: { valid: false, snapshot: null }
+  };
+
+  // ============================================================
+  // ВИЛКИ 2 ПЛЕЧА
+  // ============================================================
+  function calcArb2() {
+    const bank = parseNum($('a2-bank').value); // в базовой валюте
+    const margin = Math.min(20, parseNum($('a2-margin').value) || 0);
+    const k1 = parseNum($('a2-k1').value);
+    const k2 = parseNum($('a2-k2').value);
+    const comm1 = parseNum($('a2-comm1').value) || 0;
+    const comm2 = parseNum($('a2-comm2').value) || 0;
+    const curr1 = $('a2-curr1').value;
+    const curr2 = $('a2-curr2').value;
+
+    const resBox = $('a2-res');
+    const finalBox = $('a2-final');
+    const title = $('a2-title');
+    const profitEl = $('a2-profit');
+    const hintEl = $('a2-hint');
+    const outEl = $('a2-outcomes');
+    const saveBtn = $('a2-save');
+
+    state.a2.valid = false;
+    state.a2.snapshot = null;
+    saveBtn.disabled = true;
+
+    const valid = bank > 0 && k1 >= 1.01 && k2 >= 1.01 && comm1 >= 0 && comm2 >= 0;
+    if (!valid) { resBox.classList.remove('visible'); return; }
+
+    const adjK1 = k1 * (1 - margin / 100);
+    const adjK2 = k2 * (1 - margin / 100);
+    const k1eff = adjK1 * (1 - comm1 / 100);
+    const k2eff = adjK2 * (1 - comm2 / 100);
+
+    if (k1eff <= 1 || k2eff <= 1) { resBox.classList.remove('visible'); return; }
+
+    const S = 1 / k1eff + 1 / k2eff;
+    const hasArb = S < 1;
+
+    const rawBet1_base = bank * k2eff / (k1eff + k2eff);
+    const rawBet2_base = bank * k1eff / (k1eff + k2eff);
+
+    const smart = getSmartBets2(bank, rawBet1_base, rawBet2_base);
+    const bet1_base = smart.bet1;
+    const bet2_base = smart.bet2;
+
+    const bet1 = fromBase(bet1_base, curr1);
+    const bet2 = fromBase(bet2_base, curr2);
+
+    const pay1 = payoutOf(bet1, adjK1, comm1); // в валюте 1
+    const pay2 = payoutOf(bet2, adjK2, comm2); // в валюте 2
+
+    const pay1_base = toBase(pay1, curr1);
+    const pay2_base = toBase(pay2, curr2);
+
+    const invested_base = bet1_base + bet2_base;
+    const profitIf1_base = pay1_base - invested_base;
+    const profitIf2_base = pay2_base - invested_base;
+    const realProfit_base = Math.min(profitIf1_base, profitIf2_base);
+    const disbalance_base = Math.abs(pay1_base - pay2_base);
+
+    resBox.classList.add('visible');
+
+    const bet1Html = formatCustom(bet1, curr1) + (curr1 !== baseSymbol ? `<div class="stat-converted">≈ ${formatBase(bet1_base)}</div>` : '');
+    const bet2Html = formatCustom(bet2, curr2) + (curr2 !== baseSymbol ? `<div class="stat-converted">≈ ${formatBase(bet2_base)}</div>` : '');
+    
+    $('a2-bet1').innerHTML = bet1Html + ' <span class="plus">(+' + formatCustom(pay1, curr1) + ')</span>';
+    $('a2-bet2').innerHTML = bet2Html + ' <span class="plus">(+' + formatCustom(pay2, curr2) + ')</span>';
+    $('a2-total').textContent = formatBase(invested_base);
+
+    finalBox.classList.remove('bad', 'warn');
+
+    if (hasArb) {
+      title.textContent = 'Профит (min по исходам)';
+      profitEl.textContent = (realProfit_base >= 0 ? '+' : '−') + formatBase(Math.abs(realProfit_base));
+      
+      const marginPct = (1 - S) * 100;
+      if (realProfit_base < 0) {
+        finalBox.classList.add('bad');
+        title.textContent = 'Вилки нет — минус после округления';
+      } else if (disbalance_base > invested_base * 0.02) {
+        finalBox.classList.add('warn');
+        title.textContent = 'Внимание: перекос выплат';
+      } else if (marginPct < 0.5) {
+        finalBox.classList.add('warn');
+        title.textContent = 'Профит (маржа < 0.5%)';
+      }
+    } else {
+      title.textContent = 'Вилки нет — минус';
+      finalBox.classList.add('bad');
+      profitEl.textContent = (realProfit_base >= 0 ? '+' : '−') + formatBase(Math.abs(realProfit_base));
+    }
+
+    const parts = [];
+    parts.push('S = <b>' + S.toFixed(4) + '</b>' + (hasArb ? ' (< 1)' : ' (≥ 1)'));
+    if (margin > 0) parts.push('Резерв <b>' + margin + '%</b>');
+    if (comm1 > 0 || comm2 > 0) parts.push('Комиссии: <b>' + comm1 + '%</b> / <b>' + comm2 + '%</b>');
+    
+    const roundingLoss1 = rawBet1_base - bet1_base;
+    const roundingLoss2 = rawBet2_base - bet2_base;
+    if (Math.abs(roundingLoss1) > 0.01 || Math.abs(roundingLoss2) > 0.01) {
+      parts.push('Округление: <b>' + formatBase(roundingLoss1) + '</b> / <b>' + formatBase(roundingLoss2) + '</b>');
+    }
+    
+    if (disbalance_base > 10) {
+      parts.push('<br><span style="color:var(--warn)">Перекос выплат: <b>' + formatBase(disbalance_base) + '</b></span>');
+    }
+    hintEl.innerHTML = parts.join(' · ');
+
+    outEl.innerHTML =
+      '<div class="outcome ' + (profitIf1_base >= 0 ? 'pos' : 'neg') + '"><span>Если зайдёт К1 (' + adjK1.toFixed(3) + ')</span><span>' + (profitIf1_base >= 0 ? '+' : '−') + formatBase(Math.abs(profitIf1_base)) + '</span></div>' +
+      '<div class="outcome ' + (profitIf2_base >= 0 ? 'pos' : 'neg') + '"><span>Если зайдёт К2 (' + adjK2.toFixed(3) + ')</span><span>' + (profitIf2_base >= 0 ? '+' : '−') + formatBase(Math.abs(profitIf2_base)) + '</span></div>';
+
+    saveBtn.disabled = false;
+    state.a2.valid = true;
+    state.a2.snapshot = {
+      kind: 'arb2',
+      label: 'Вилка 2',
+      currency: baseSymbol,
+      bank, k1, k2, comm1, comm2, margin, curr1, curr2,
+      bet1, bet2, invested: invested_base, profit: realProfit_base, hasArb
+    };
+  }
+
+  // ============================================================
+  // ВИЛКИ 3 ПЛЕЧА
+  // ============================================================
+  function calcArb3() {
+    const bank = parseNum($('a3-bank').value);
+    const k1 = parseNum($('a3-k1').value);
+    const k2 = parseNum($('a3-k2').value);
+    const k3 = parseNum($('a3-k3').value);
+    const comm1 = parseNum($('a3-comm1').value) || 0;
+    const comm2 = parseNum($('a3-comm2').value) || 0;
+    const comm3 = parseNum($('a3-comm3').value) || 0;
+    const curr1 = $('a3-curr1').value;
+    const curr2 = $('a3-curr2').value;
+    const curr3 = $('a3-curr3').value;
+
+    const resBox = $('a3-res');
+    const finalBox = $('a3-final');
+    const title = $('a3-title');
+    const profitEl = $('a3-profit');
+    const hintEl = $('a3-hint');
+    const outEl = $('a3-outcomes');
+    const saveBtn = $('a3-save');
+
+    state.a3.valid = false;
+    state.a3.snapshot = null;
+    saveBtn.disabled = true;
+
+    const valid = bank > 0 && k1 >= 1.01 && k2 >= 1.01 && k3 >= 1.01 && comm1 >= 0 && comm2 >= 0 && comm3 >= 0;
+    if (!valid) { resBox.classList.remove('visible'); return; }
+
+    const k1eff = k1 * (1 - comm1 / 100);
+    const k2eff = k2 * (1 - comm2 / 100);
+    const k3eff = k3 * (1 - comm3 / 100);
+
+    const S = 1 / k1eff + 1 / k2eff + 1 / k3eff;
+    const hasArb = S < 1;
+
+    const rawBet1_base = bank * (1 / k1eff) / S;
+    const rawBet2_base = bank * (1 / k2eff) / S;
+    const rawBet3_base = bank * (1 / k3eff) / S;
+
+    const smart = getSmartBets3(bank, rawBet1_base, rawBet2_base, rawBet3_base);
+    const bet1_base = smart.bet1;
+    const bet2_base = smart.bet2;
+    const bet3_base = smart.bet3;
+
+    const bet1 = fromBase(bet1_base, curr1);
+    const bet2 = fromBase(bet2_base, curr2);
+    const bet3 = fromBase(bet3_base, curr3);
+
+    const pay1 = payoutOf(bet1, k1, comm1);
+    const pay2 = payoutOf(bet2, k2, comm2);
+    const pay3 = payoutOf(bet3, k3, comm3);
+
+    const pay1_base = toBase(pay1, curr1);
+    const pay2_base = toBase(pay2, curr2);
+    const pay3_base = toBase(pay3, curr3);
+
+    const invested_base = bet1_base + bet2_base + bet3_base;
+    
+    const profitIf1_base = pay1_base - invested_base;
+    const profitIf2_base = pay2_base - invested_base;
+    const profitIf3_base = pay3_base - invested_base;
+    const realProfit_base = Math.min(profitIf1_base, profitIf2_base, profitIf3_base);
+    
+    const maxPay = Math.max(pay1_base, pay2_base, pay3_base);
+    const minPay = Math.min(pay1_base, pay2_base, pay3_base);
+    const disbalance_base = maxPay - minPay;
+
+    resBox.classList.add('visible');
+    
+    const bet1Html = formatCustom(bet1, curr1) + (curr1 !== baseSymbol ? `<div class="stat-converted">≈ ${formatBase(bet1_base)}</div>` : '');
+    const bet2Html = formatCustom(bet2, curr2) + (curr2 !== baseSymbol ? `<div class="stat-converted">≈ ${formatBase(bet2_base)}</div>` : '');
+    const bet3Html = formatCustom(bet3, curr3) + (curr3 !== baseSymbol ? `<div class="stat-converted">≈ ${formatBase(bet3_base)}</div>` : '');
+
+    $('a3-bet1').innerHTML = bet1Html + ' <span class="plus">(+' + formatCustom(pay1, curr1) + ')</span>';
+    $('a3-bet2').innerHTML = bet2Html + ' <span class="plus">(+' + formatCustom(pay2, curr2) + ')</span>';
+    $('a3-bet3').innerHTML = bet3Html + ' <span class="plus">(+' + formatCustom(pay3, curr3) + ')</span>';
+    $('a3-total').textContent = formatBase(invested_base);
+
+    finalBox.classList.remove('bad', 'warn');
+
+    if (hasArb) {
+      title.textContent = 'Профит (min по исходам)';
+      profitEl.textContent = (realProfit_base >= 0 ? '+' : '−') + formatBase(Math.abs(realProfit_base));
+      
+      const marginPct = (1 - S) * 100;
+      if (realProfit_base < 0) {
+        finalBox.classList.add('bad');
+        title.textContent = 'Вилки нет — минус после округления';
+      } else if (disbalance_base > invested_base * 0.02) {
+        finalBox.classList.add('warn');
+        title.textContent = 'Внимание: перекос выплат';
+      } else if (marginPct < 0.5) {
+        finalBox.classList.add('warn');
+        title.textContent = 'Профит (маржа < 0.5%)';
+      }
+    } else {
+      title.textContent = 'Вилки нет — минус';
+      finalBox.classList.add('bad');
+      profitEl.textContent = (realProfit_base >= 0 ? '+' : '−') + formatBase(Math.abs(realProfit_base));
+    }
+
+    const parts = [];
+    parts.push('S = <b>' + S.toFixed(4) + '</b>' + (hasArb ? ' (< 1)' : ' (≥ 1)'));
+    
+    if (disbalance_base > 10) {
+      parts.push('<br><span style="color:var(--warn)">Перекос выплат: <b>' + formatBase(disbalance_base) + '</b></span>');
+    }
+    hintEl.innerHTML = parts.join(' · ');
+
+    outEl.innerHTML =
+      '<div class="outcome ' + (profitIf1_base >= 0 ? 'pos' : 'neg') + '"><span>П1 (' + k1.toFixed(3) + ')</span><span>' + (profitIf1_base >= 0 ? '+' : '−') + formatBase(Math.abs(profitIf1_base)) + '</span></div>' +
+      '<div class="outcome ' + (profitIf2_base >= 0 ? 'pos' : 'neg') + '"><span>X (' + k2.toFixed(3) + ')</span><span>' + (profitIf2_base >= 0 ? '+' : '−') + formatBase(Math.abs(profitIf2_base)) + '</span></div>' +
+      '<div class="outcome ' + (profitIf3_base >= 0 ? 'pos' : 'neg') + '"><span>П2 (' + k3.toFixed(3) + ')</span><span>' + (profitIf3_base >= 0 ? '+' : '−') + formatBase(Math.abs(profitIf3_base)) + '</span></div>';
+
+    saveBtn.disabled = false;
+    state.a3.valid = true;
+    state.a3.snapshot = {
+      kind: 'arb3',
+      label: 'Вилка 3',
+      currency: baseSymbol,
+      bank, k1, k2, k3, comm1, comm2, comm3, curr1, curr2, curr3,
+      bet1, bet2, bet3, invested: invested_base, profit: realProfit_base, hasArb
+    };
+  }
+
+  // ============================================================
+  // ФРИБЕТЫ
+  // ============================================================
+  function calcFree() {
+    const bonus = parseNum($('f-bonus').value); // в валюте curr1
+    const type = $('f-type').value;
+    const margin = Math.min(20, parseNum($('f-margin').value) || 0);
+    const k1 = parseNum($('f-k1').value);
+    const k2 = parseNum($('f-k2').value);
+    const comm1 = parseNum($('f-comm1').value) || 0;
+    const comm2 = parseNum($('f-comm2').value) || 0;
+    const curr1 = $('f-curr1').value;
+    const curr2 = $('f-curr2').value;
+
+    const resBox = $('f-res');
+    const finalBox = $('f-final');
+    const title = $('f-title');
+    const profitEl = $('f-profit');
+    const hintEl = $('f-hint');
+    const outEl = $('f-outcomes');
+    const saveBtn = $('f-save');
+
+    state.free.valid = false;
+    state.free.snapshot = null;
+    saveBtn.disabled = true;
+
+    const valid = bonus > 0 && k1 >= 1.01 && k2 >= 1.01 && comm1 >= 0 && comm2 >= 0;
+    if (!valid) { resBox.classList.remove('visible'); return; }
+
+    const adjK1 = k1 * (1 - margin / 100);
+    const adjK2 = k2 * (1 - margin / 100);
+    const k1eff = adjK1 * (1 - comm1 / 100);
+    const k2eff = adjK2 * (1 - comm2 / 100);
+
+    if (k1eff <= 1 || k2eff <= 1) { resBox.classList.remove('visible'); return; }
+
+    const pay1_orig = bonus * adjK1 * (1 - comm1 / 100); // выплата в валюте фрибета
+    const pay1_base = toBase(pay1_orig, curr1);
+
+    const rawBet2_base = pay1_base / k2eff;
+    const bet2_base = Math.round(rawBet2_base / 100) * 100;
+    const bet2 = fromBase(bet2_base, curr2);
+
+    const pay2_orig = bet2 * adjK2 * (1 - comm2 / 100);
+    const pay2_base = toBase(pay2_orig, curr2);
+
+    const invested_base = bet2_base;
+    const profitIf1_base = pay1_base - invested_base;
+    const profitIf2_base = pay2_base - invested_base;
+    const realProfit_base = Math.min(profitIf1_base, profitIf2_base);
+    const disbalance_base = Math.abs(pay1_base - pay2_base);
+
+    resBox.classList.add('visible');
+    
+    const bet2Html = formatCustom(bet2, curr2) + (curr2 !== baseSymbol ? `<div class="stat-converted">≈ ${formatBase(bet2_base)}</div>` : '');
+    $('f-bet2').innerHTML = bet2Html + ' <span class="plus">(+' + formatCustom(pay2_orig, curr2) + ')</span>';
+    $('f-total').textContent = formatBase(invested_base);
+
+    finalBox.classList.remove('bad', 'warn');
+
+    if (realProfit_base > 0.001) {
+      title.textContent = 'Гарантированный профит';
+      if (disbalance_base > invested_base * 0.02) {
+        finalBox.classList.add('warn');
+        title.textContent = 'Внимание: перекос выплат';
+      }
+    } else if (Math.abs(realProfit_base) <= 0.001) {
+      title.textContent = 'Ноль';
+      finalBox.classList.add('warn');
+    } else {
+      title.textContent = 'Минус';
+      finalBox.classList.add('bad');
+    }
+    profitEl.textContent = (realProfit_base >= 0 ? '+' : '−') + formatBase(Math.abs(realProfit_base));
+
+    const parts = [];
+    parts.push('Тип: <b>' + (type === 'nr' ? 'не возвращается' : 'возвращается') + '</b>');
+    if (margin > 0) parts.push('Резерв <b>' + margin + '%</b>');
+    
+    if (disbalance_base > 10) {
+      parts.push('<br><span style="color:var(--warn)">Перекос выплат: <b>' + formatBase(disbalance_base) + '</b></span>');
+    }
+    hintEl.innerHTML = parts.join(' · ');
+
+    outEl.innerHTML =
+      '<div class="outcome ' + (profitIf1_base >= 0 ? 'pos' : 'neg') + '"><span>Если зайдёт фрибет</span><span>' + (profitIf1_base >= 0 ? '+' : '−') + formatBase(Math.abs(profitIf1_base)) + '</span></div>' +
+      '<div class="outcome ' + (profitIf2_base >= 0 ? 'pos' : 'neg') + '"><span>Если зайдёт ставка К2</span><span>' + (profitIf2_base >= 0 ? '+' : '−') + formatBase(Math.abs(profitIf2_base)) + '</span></div>';
+
+    saveBtn.disabled = false;
+    state.free.valid = true;
+    state.free.snapshot = {
+      kind: 'free',
+      label: 'Фрибет',
+      currency: baseSymbol,
+      bonus, type, k1, k2, comm1, comm2, margin, curr1, curr2,
+      bet2, invested: invested_base, profit: realProfit_base
+    };
+  }
+
+  // ============================================================
+  // ИСТОРИЯ
+  // ============================================================
+  const STORAGE_KEY = 'arbiter_pro_deals_v6'; 
+  const MAX_DEALS = 200;
+
+  function loadDeals() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+
+  function saveDeals(deals) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(deals.slice(0, MAX_DEALS))); }
+    catch (e) {}
+  }
+
+  let deals = loadDeals();
+
+  function dealDateStr(ts) {
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, '0');
+    return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getFullYear()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function dealMainText(d) {
+    const sym = d.currency || '₽';
+    const f = (v) => v.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + sym;
+    
+    if (d.kind === 'arb2') return 'Банк ' + f(d.bank) + ' · ' + d.curr1 + d.k1 + ' / ' + d.curr2 + d.k2;
+    if (d.kind === 'arb3') return 'Банк ' + f(d.bank) + ' · ' + d.curr1 + d.k1 + ' / ' + d.curr2 + d.k2 + ' / ' + d.curr3 + d.k3;
+    return 'Фрибет ' + d.curr1 + f(d.bonus) + ' · ' + d.curr2 + d.k2;
+  }
+
+  function renderHistory() {
+    const list = $('hist-list');
+    const empty = $('hist-empty');
+    const count = $('hist-count');
+    const clearBtn = $('hist-clear');
+
+    count.textContent = deals.length ? '· ' + deals.length : '';
+    clearBtn.disabled = deals.length === 0;
+
+    if (!deals.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = deals.map(d => {
+      const cls = d.profit >= 0 ? 'pos' : 'neg';
+      const isLoss = d.profit < 0;
+      
+      let typeCls = '';
+      let typeLabel = '';
+      
+      if (isLoss) {
+        typeCls = 'loss';
+        typeLabel = 'Убыток';
+      } else {
+        typeCls = d.kind === 'free' ? 'free' : d.kind === 'arb3' ? 'arb3' : '';
+        typeLabel = d.kind === 'free' ? 'Фрибет' : d.kind === 'arb3' ? 'Вилка 3' : 'Вилка 2';
+      }
+
+      const sym = d.currency || '₽';
+      const profitStr = (d.profit >= 0 ? '+' : '−') + Math.abs(d.profit).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + sym;
+
+      return (
+        '<div class="deal" data-id="' + d.id + '">' +
+          '<span class="deal-type ' + typeCls + '">' + typeLabel + '</span>' +
+          '<div class="deal-info">' +
+            '<div class="deal-main">' + dealMainText(d) + '</div>' +
+            '<div class="deal-date">' + dealDateStr(d.ts) + '</div>' +
+          '</div>' +
+          '<span class="deal-profit ' + cls + '">' + profitStr + '</span>' +
+          '<button class="deal-del" data-del="' + d.id + '" title="Удалить">×</button>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function addDeal(snapshot) {
+    const deal = Object.assign({}, snapshot, {
+      id: 'd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      ts: Date.now()
+    });
+    deals.unshift(deal);
+    if (deals.length > MAX_DEALS) deals = deals.slice(0, MAX_DEALS);
+    saveDeals(deals);
+    renderHistory();
+  }
+
+  function removeDeal(id) {
+    deals = deals.filter(d => d.id !== id);
+    saveDeals(deals);
+    renderHistory();
+  }
+
+  $('a2-save').addEventListener('click', () => {
+    if (state.a2.valid && state.a2.snapshot) addDeal(state.a2.snapshot);
+  });
+  $('a3-save').addEventListener('click', () => {
+    if (state.a3.valid && state.a3.snapshot) addDeal(state.a3.snapshot);
+  });
+  $('f-save').addEventListener('click', () => {
+    if (state.free.valid && state.free.snapshot) addDeal(state.free.snapshot);
+  });
+
+  $('hist-clear').addEventListener('click', () => {
+    if (!deals.length) return;
+    if (!confirm('Удалить всю историю сделок?')) return;
+    deals = [];
+    saveDeals(deals);
+    renderHistory();
+  });
+
+  $('hist-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-del]');
+    if (!btn) return;
+    removeDeal(btn.dataset.del);
+  });
+
+  renderHistory();
+
+  // ============================================================
+  // Табы
+  // ============================================================
+  const tabs = Array.from(document.querySelectorAll('.tab'));
+  const sections = { arb2: $('sec-arb2'), arb3: $('sec-arb3'), free: $('sec-free') };
+
+  function switchTab(name) {
+    if (!sections[name]) return;
+    tabs.forEach(t => {
+      const on = t.dataset.tab === name;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    Object.entries(sections).forEach(([k, s]) => s.classList.toggle('active', k === name));
+  }
+  tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  window.calcArb2 = calcArb2;
+  window.calcArb3 = calcArb3;
+  window.calcFree = calcFree;
+  window.switchTab = switchTab;
+
+  // Загрузка при старте
+  loadFields();
+  calcArb2(); calcArb3(); calcFree();
+  
+  // Восстановление активной вкладки
+  try {
+    const savedTab = localStorage.getItem('arbiter_tab');
+    if (savedTab && sections[savedTab]) switchTab(savedTab);
+    tabs.forEach(t => t.addEventListener('click', () => {
+      localStorage.setItem('arbiter_tab', t.dataset.tab);
+    }));
+  } catch(e){}
+
+})();
+</script>
+</body>
+</html>
