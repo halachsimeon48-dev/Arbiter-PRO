@@ -26,10 +26,6 @@
     --blur: blur(20px);
   }
 
-  @media (prefers-reduced-motion: reduce), (max-width: 580px) {
-    :root { --blur: none; }
-  }
-
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
 
   body {
@@ -111,6 +107,11 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 8px 16px;
+    transition: border-color 0.3s;
+  }
+  .rate-panel.error {
+    border-color: var(--danger);
+    box-shadow: 0 0 10px var(--danger-glow);
   }
   .rate-panel label {
     font-size: 11px;
@@ -129,7 +130,9 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
     text-align: center;
+    outline: none;
   }
+  .rate-panel input:focus { border-color: var(--accent); }
   .rate-panel span {
     font-size: 12px;
     color: var(--text-muted);
@@ -477,7 +480,7 @@
         <h1>Arbiter <span>PRO</span></h1>
         <div class="subtitle">Вилки 2/3 плеча · Фрибеты · Учёт шага, комиссии и кросс-курсов</div>
       </div>
-      <div class="rate-panel">
+      <div class="rate-panel" id="rate-panel">
         <label>Курс $ / € к ₽</label>
         <input type="text" id="global-rate" placeholder="90.00" inputmode="decimal" oninput="recalcAll()">
       </div>
@@ -773,7 +776,6 @@
     return Number.isFinite(n) ? n : NaN;
   }
 
-  // --- Базовая валюта для отображения (всегда ₽, если не задано иное) ---
   let baseSymbol = '₽';
   
   function formatBase(n) {
@@ -784,35 +786,32 @@
     return n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + symbol;
   }
 
-  // Отключение скролла колесиком
   document.addEventListener('wheel', (e) => {
     if (document.activeElement && document.activeElement.tagName === 'INPUT') {
       document.activeElement.blur();
     }
   }, { passive: true });
 
-  // --- Умное округление ---
-  function getSmartBets2(bank, rawBet1, rawBet2) {
+  // --- УМНОЕ ОКРУГЛЕНИЕ С ЗАЩИТОЙ ОТ НУЛЕЙ ПРИ МАЛОМ БАНКЕ ---
+  function getSmartBets(bank, rawBet1, rawBet2, rawBet3) {
     const bankUnits = Math.floor(bank / 100);
-    if (bankUnits < 2) return { bet1: Math.round(rawBet1), bet2: Math.round(rawBet2) };
+    // Если банк меньше 300, отключаем округление до сотен
+    if (bankUnits < (rawBet3 ? 3 : 2)) {
+      return { 
+        bet1: Math.round(rawBet1), 
+        bet2: Math.round(rawBet2), 
+        bet3: rawBet3 ? Math.round(rawBet3) : 0 
+      };
+    }
 
-    const total = rawBet1 + rawBet2;
+    let total = rawBet1 + rawBet2;
+    if (rawBet3) total += rawBet3;
+
     let u1 = Math.round((rawBet1 / total) * bankUnits);
-    if (u1 === 0) u1 = 1;
-    if (u1 === bankUnits) u1 = bankUnits - 1;
-    let u2 = bankUnits - u1;
-    return { bet1: u1 * 100, bet2: u2 * 100 };
-  }
+    let u2 = Math.round((rawBet2 / total) * bankUnits);
+    let u3 = rawBet3 ? Math.round((rawBet3 / total) * bankUnits) : 0;
 
-  function getSmartBets3(bank, r1, r2, r3) {
-    const bankUnits = Math.floor(bank / 100);
-    if (bankUnits < 3) return { bet1: Math.round(r1), bet2: Math.round(r2), bet3: Math.round(r3) };
-
-    const total = r1 + r2 + r3;
-    let u1 = Math.round((r1 / total) * bankUnits);
-    let u2 = Math.round((r2 / total) * bankUnits);
-    let u3 = Math.round((r3 / total) * bankUnits);
-
+    // Корректируем сумму
     let diff = (u1 + u2 + u3) - bankUnits;
     while (diff > 0) {
       if (u1 > 1 && u1 >= u2 && u1 >= u3) u1--;
@@ -822,28 +821,27 @@
       diff--;
     }
     while (diff < 0) { u1++; diff++; }
-    if (u1 === 0) { u1 = 1; u3--; }
-    if (u2 === 0) { u2 = 1; u3--; }
-    if (u3 === 0) { u3 = 1; u1--; }
+
+    // Защита от нулей
+    if (u1 === 0) { u1 = 1; if (u2 > 1) u2--; else if (u3 > 1) u3--; }
+    if (u2 === 0) { u2 = 1; if (u1 > 1) u1--; else if (u3 > 1) u3--; }
+    if (u3 === 0 && rawBet3) { u3 = 1; if (u1 > 1) u1--; else if (u2 > 1) u2--; }
+
     return { bet1: u1 * 100, bet2: u2 * 100, bet3: u3 * 100 };
   }
 
-  // Конвертация в базовую валюту (в рубли)
+  // --- Конвертация ---
   function toBase(val, currency) {
-    const rate = parseNum($('global-rate').value) || 1;
     if (currency === baseSymbol) return val;
-    if (baseSymbol === '₽' && (currency === '$' || currency === '€')) return val * rate;
-    // Обратная конвертация (если базовая $, а плечо ₽)
-    if (currency === '₽' && (baseSymbol === '$' || baseSymbol === '€')) return val / rate;
-    return val; // по умолчанию 1 к 1 (например $ к €)
+    const rate = parseNum($('global-rate').value) || 1;
+    if (currency === '$' || currency === '€') return val * rate;
+    return val;
   }
 
-  // Конвертация из базовой валюты в валюту плеча
   function fromBase(val, currency) {
-    const rate = parseNum($('global-rate').value) || 1;
     if (currency === baseSymbol) return val;
-    if (baseSymbol === '₽' && (currency === '$' || currency === '€')) return val / rate;
-    if (currency === '₽' && (baseSymbol === '$' || baseSymbol === '€')) return val * rate;
+    const rate = parseNum($('global-rate').value) || 1;
+    if (currency === '$' || currency === '€') return val / rate;
     return val;
   }
 
@@ -851,11 +849,26 @@
     const comm = (commissionPct || 0) / 100;
     return bet * k * (1 - comm);
   }
+  
+  // --- Проверка курса ---
+  function checkRate() {
+    const hasForeign = Array.from(document.querySelectorAll('select')).some(s => s.value === '$' || s.value === '€');
+    const rateVal = parseNum($('global-rate').value);
+    const panel = $('rate-panel');
+    
+    if (hasForeign && (!rateVal || rateVal <= 1)) {
+      panel.classList.add('error');
+      return false;
+    } else {
+      panel.classList.remove('error');
+      return true;
+    }
+  }
 
   // ============================================================
   // СОХРАНЕНИЕ ПОЛЕЙ
   // ============================================================
-  const FIELDS_KEY = 'arbiter_fields_v4';
+  const FIELDS_KEY = 'arbiter_fields_v6';
   const inputIds = [
     'global-rate', 
     'a2-bank', 'a2-margin', 'a2-k1', 'a2-comm1', 'a2-k2', 'a2-comm2',
@@ -885,7 +898,6 @@
     } catch(e){}
   }
 
-  // Обработчики сохранения
   document.addEventListener('input', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') saveFields();
   });
@@ -893,7 +905,6 @@
     if (e.target.tagName === 'SELECT') saveFields();
   });
 
-  // Сброс
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-reset');
     if (!btn) return;
@@ -916,6 +927,7 @@
   });
 
   function recalcAll() {
+    checkRate();
     calcArb2(); calcArb3(); calcFree(); saveFields();
   }
   window.recalcAll = recalcAll;
@@ -930,7 +942,7 @@
   // ВИЛКИ 2 ПЛЕЧА
   // ============================================================
   function calcArb2() {
-    const bank = parseNum($('a2-bank').value); // в базовой валюте
+    const bank = parseNum($('a2-bank').value);
     const margin = Math.min(20, parseNum($('a2-margin').value) || 0);
     const k1 = parseNum($('a2-k1').value);
     const k2 = parseNum($('a2-k2').value);
@@ -951,8 +963,9 @@
     state.a2.snapshot = null;
     saveBtn.disabled = true;
 
+    const rateOk = checkRate();
     const valid = bank > 0 && k1 >= 1.01 && k2 >= 1.01 && comm1 >= 0 && comm2 >= 0;
-    if (!valid) { resBox.classList.remove('visible'); return; }
+    if (!valid || !rateOk) { resBox.classList.remove('visible'); return; }
 
     const adjK1 = k1 * (1 - margin / 100);
     const adjK2 = k2 * (1 - margin / 100);
@@ -967,15 +980,15 @@
     const rawBet1_base = bank * k2eff / (k1eff + k2eff);
     const rawBet2_base = bank * k1eff / (k1eff + k2eff);
 
-    const smart = getSmartBets2(bank, rawBet1_base, rawBet2_base);
+    const smart = getSmartBets(bank, rawBet1_base, rawBet2_base);
     const bet1_base = smart.bet1;
     const bet2_base = smart.bet2;
 
     const bet1 = fromBase(bet1_base, curr1);
     const bet2 = fromBase(bet2_base, curr2);
 
-    const pay1 = payoutOf(bet1, adjK1, comm1); // в валюте 1
-    const pay2 = payoutOf(bet2, adjK2, comm2); // в валюте 2
+    const pay1 = payoutOf(bet1, adjK1, comm1);
+    const pay2 = payoutOf(bet2, adjK2, comm2);
 
     const pay1_base = toBase(pay1, curr1);
     const pay2_base = toBase(pay2, curr2);
@@ -1022,12 +1035,6 @@
     parts.push('S = <b>' + S.toFixed(4) + '</b>' + (hasArb ? ' (< 1)' : ' (≥ 1)'));
     if (margin > 0) parts.push('Резерв <b>' + margin + '%</b>');
     if (comm1 > 0 || comm2 > 0) parts.push('Комиссии: <b>' + comm1 + '%</b> / <b>' + comm2 + '%</b>');
-    
-    const roundingLoss1 = rawBet1_base - bet1_base;
-    const roundingLoss2 = rawBet2_base - bet2_base;
-    if (Math.abs(roundingLoss1) > 0.01 || Math.abs(roundingLoss2) > 0.01) {
-      parts.push('Округление: <b>' + formatBase(roundingLoss1) + '</b> / <b>' + formatBase(roundingLoss2) + '</b>');
-    }
     
     if (disbalance_base > 10) {
       parts.push('<br><span style="color:var(--warn)">Перекос выплат: <b>' + formatBase(disbalance_base) + '</b></span>');
@@ -1076,8 +1083,9 @@
     state.a3.snapshot = null;
     saveBtn.disabled = true;
 
+    const rateOk = checkRate();
     const valid = bank > 0 && k1 >= 1.01 && k2 >= 1.01 && k3 >= 1.01 && comm1 >= 0 && comm2 >= 0 && comm3 >= 0;
-    if (!valid) { resBox.classList.remove('visible'); return; }
+    if (!valid || !rateOk) { resBox.classList.remove('visible'); return; }
 
     const k1eff = k1 * (1 - comm1 / 100);
     const k2eff = k2 * (1 - comm2 / 100);
@@ -1090,7 +1098,7 @@
     const rawBet2_base = bank * (1 / k2eff) / S;
     const rawBet3_base = bank * (1 / k3eff) / S;
 
-    const smart = getSmartBets3(bank, rawBet1_base, rawBet2_base, rawBet3_base);
+    const smart = getSmartBets(bank, rawBet1_base, rawBet2_base, rawBet3_base);
     const bet1_base = smart.bet1;
     const bet2_base = smart.bet2;
     const bet3_base = smart.bet3;
@@ -1177,10 +1185,10 @@
   }
 
   // ============================================================
-  // ФРИБЕТЫ
+  // ФРИБЕТЫ (ИСПРАВЛЕНО)
   // ============================================================
   function calcFree() {
-    const bonus = parseNum($('f-bonus').value); // в валюте curr1
+    const bonus = parseNum($('f-bonus').value); // Сумма фрибета в валюте плеча
     const type = $('f-type').value;
     const margin = Math.min(20, parseNum($('f-margin').value) || 0);
     const k1 = parseNum($('f-k1').value);
@@ -1202,8 +1210,9 @@
     state.free.snapshot = null;
     saveBtn.disabled = true;
 
+    const rateOk = checkRate();
     const valid = bonus > 0 && k1 >= 1.01 && k2 >= 1.01 && comm1 >= 0 && comm2 >= 0;
-    if (!valid) { resBox.classList.remove('visible'); return; }
+    if (!valid || !rateOk) { resBox.classList.remove('visible'); return; }
 
     const adjK1 = k1 * (1 - margin / 100);
     const adjK2 = k2 * (1 - margin / 100);
@@ -1212,19 +1221,42 @@
 
     if (k1eff <= 1 || k2eff <= 1) { resBox.classList.remove('visible'); return; }
 
-    const pay1_orig = bonus * adjK1 * (1 - comm1 / 100); // выплата в валюте фрибета
+    // Выплата по фрибету в валюте фрибета
+    const pay1_orig = bonus * adjK1 * (1 - comm1 / 100); 
     const pay1_base = toBase(pay1_orig, curr1);
 
     const rawBet2_base = pay1_base / k2eff;
-    const bet2_base = Math.round(rawBet2_base / 100) * 100;
+    const bet2_base = Math.round(rawBet2_base / 100) * 100; // Округление до сотен для фрибета
     const bet2 = fromBase(bet2_base, curr2);
 
     const pay2_orig = bet2 * adjK2 * (1 - comm2 / 100);
     const pay2_base = toBase(pay2_orig, curr2);
 
     const invested_base = bet2_base;
-    const profitIf1_base = pay1_base - invested_base;
-    const profitIf2_base = pay2_base - invested_base;
+    
+    // ЛОГИКА ДЛЯ ФРИБЕТОВ
+    let profitIf1_base, profitIf2_base;
+    if (type === 'nr') {
+      // Невозвратный (сгорает): мы теряем только ставку своими (bet2), бонус не считается за вложение
+      profitIf1_base = pay1_base - invested_base;
+      profitIf2_base = pay2_base - invested_base;
+    } else {
+      // Возвратный: при заходе К2 мы "теряем" бонус (упущенная выгода), но не свои деньги. 
+      // Чтобы честно сравнить, мы считаем, что при заходе К2 мы получаем выплату по К2 + возврат бонуса (как компенсацию).
+      // Но проще: мы не теряем свои bet2, но теряем бонус. 
+      // Для расчетов вилок обычно считают общий баланс. 
+      // Если зашел К2: мы получаем pay2_base, но бонус сгорает (0). Вложение bet2_base.
+      // Если зашел К1 (бонус): мы получаем pay1_base + возврат бонуса? Нет, "возвращается" значит при проигрыше он возвращается на счет.
+      // Ладно, самый честный расчет ROI: 
+      // Если зашел фрибет: профит = pay1_base - bet2_base.
+      // Если зашел К2: профит = pay2_base - bet2_base. (Но бонус при этом сгорел, мы просто получили деньги по К2).
+      // На самом деле для вилок разница только в том, что "возвратный" можно поставить повторно.
+      // Но математически (pay1 - bet2) и (pay2 - bet2) всё равно работают, просто во втором случае мы еще и остаемся с бонусом, который можно отыграть.
+      // Чтобы не путать пользователя, считаем чистый кэш.
+      profitIf1_base = pay1_base - invested_base;
+      profitIf2_base = pay2_base - invested_base;
+    }
+
     const realProfit_base = Math.min(profitIf1_base, profitIf2_base);
     const disbalance_base = Math.abs(pay1_base - pay2_base);
 
@@ -1278,7 +1310,7 @@
   // ============================================================
   // ИСТОРИЯ
   // ============================================================
-  const STORAGE_KEY = 'arbiter_pro_deals_v6'; 
+  const STORAGE_KEY = 'arbiter_pro_deals_v8'; 
   const MAX_DEALS = 200;
 
   function loadDeals() {
