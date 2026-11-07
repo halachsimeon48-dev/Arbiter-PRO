@@ -795,7 +795,6 @@
   // --- УМНОЕ ОКРУГЛЕНИЕ С ЗАЩИТОЙ ОТ НУЛЕЙ ПРИ МАЛОМ БАНКЕ ---
   function getSmartBets(bank, rawBet1, rawBet2, rawBet3) {
     const bankUnits = Math.floor(bank / 100);
-    // Если банк меньше 300, отключаем округление до сотен
     if (bankUnits < (rawBet3 ? 3 : 2)) {
       return { 
         bet1: Math.round(rawBet1), 
@@ -811,7 +810,6 @@
     let u2 = Math.round((rawBet2 / total) * bankUnits);
     let u3 = rawBet3 ? Math.round((rawBet3 / total) * bankUnits) : 0;
 
-    // Корректируем сумму
     let diff = (u1 + u2 + u3) - bankUnits;
     while (diff > 0) {
       if (u1 > 1 && u1 >= u2 && u1 >= u3) u1--;
@@ -822,7 +820,6 @@
     }
     while (diff < 0) { u1++; diff++; }
 
-    // Защита от нулей
     if (u1 === 0) { u1 = 1; if (u2 > 1) u2--; else if (u3 > 1) u3--; }
     if (u2 === 0) { u2 = 1; if (u1 > 1) u1--; else if (u3 > 1) u3--; }
     if (u3 === 0 && rawBet3) { u3 = 1; if (u1 > 1) u1--; else if (u2 > 1) u2--; }
@@ -830,7 +827,6 @@
     return { bet1: u1 * 100, bet2: u2 * 100, bet3: u3 * 100 };
   }
 
-  // --- Конвертация ---
   function toBase(val, currency) {
     if (currency === baseSymbol) return val;
     const rate = parseNum($('global-rate').value) || 1;
@@ -850,7 +846,6 @@
     return bet * k * (1 - comm);
   }
   
-  // --- Проверка курса ---
   function checkRate() {
     const hasForeign = Array.from(document.querySelectorAll('select')).some(s => s.value === '$' || s.value === '€');
     const rateVal = parseNum($('global-rate').value);
@@ -868,7 +863,7 @@
   // ============================================================
   // СОХРАНЕНИЕ ПОЛЕЙ
   // ============================================================
-  const FIELDS_KEY = 'arbiter_fields_v6';
+  const FIELDS_KEY = 'arbiter_fields_v8';
   const inputIds = [
     'global-rate', 
     'a2-bank', 'a2-margin', 'a2-k1', 'a2-comm1', 'a2-k2', 'a2-comm2',
@@ -1221,47 +1216,38 @@
 
     if (k1eff <= 1 || k2eff <= 1) { resBox.classList.remove('visible'); return; }
 
-    // Выплата по фрибету в валюте фрибета
-    const pay1_orig = bonus * adjK1 * (1 - comm1 / 100); 
+    // ЧИСТАЯ ВЫПЛАТА ПО ФРИБЕТУ
+    let pay1_orig = 0;
+    if (type === 'nr') {
+      // Невозвратный: выплата = (сумма * кеф) - сумма
+      pay1_orig = (bonus * adjK1 * (1 - comm1 / 100)) - bonus;
+    } else {
+      // Возвратный: выплата = сумма * кеф
+      pay1_orig = bonus * adjK1 * (1 - comm1 / 100);
+    }
+    
+    // Переводим выплату в базовую валюту (рубли)
     const pay1_base = toBase(pay1_orig, curr1);
 
+    // Считаем, сколько надо поставить своими, чтобы уравнять ЧИСТУЮ выплату
     const rawBet2_base = pay1_base / k2eff;
-    const bet2_base = Math.round(rawBet2_base / 100) * 100; // Округление до сотен для фрибета
+    const bet2_base = Math.round(rawBet2_base / 100) * 100; // Округление до сотен
     const bet2 = fromBase(bet2_base, curr2);
 
     const pay2_orig = bet2 * adjK2 * (1 - comm2 / 100);
     const pay2_base = toBase(pay2_orig, curr2);
 
-    const invested_base = bet2_base;
+    const invested_base = bet2_base; 
     
-    // ЛОГИКА ДЛЯ ФРИБЕТОВ
-    let profitIf1_base, profitIf2_base;
-    if (type === 'nr') {
-      // Невозвратный (сгорает): мы теряем только ставку своими (bet2), бонус не считается за вложение
-      profitIf1_base = pay1_base - invested_base;
-      profitIf2_base = pay2_base - invested_base;
-    } else {
-      // Возвратный: при заходе К2 мы "теряем" бонус (упущенная выгода), но не свои деньги. 
-      // Чтобы честно сравнить, мы считаем, что при заходе К2 мы получаем выплату по К2 + возврат бонуса (как компенсацию).
-      // Но проще: мы не теряем свои bet2, но теряем бонус. 
-      // Для расчетов вилок обычно считают общий баланс. 
-      // Если зашел К2: мы получаем pay2_base, но бонус сгорает (0). Вложение bet2_base.
-      // Если зашел К1 (бонус): мы получаем pay1_base + возврат бонуса? Нет, "возвращается" значит при проигрыше он возвращается на счет.
-      // Ладно, самый честный расчет ROI: 
-      // Если зашел фрибет: профит = pay1_base - bet2_base.
-      // Если зашел К2: профит = pay2_base - bet2_base. (Но бонус при этом сгорел, мы просто получили деньги по К2).
-      // На самом деле для вилок разница только в том, что "возвратный" можно поставить повторно.
-      // Но математически (pay1 - bet2) и (pay2 - bet2) всё равно работают, просто во втором случае мы еще и остаемся с бонусом, который можно отыграть.
-      // Чтобы не путать пользователя, считаем чистый кэш.
-      profitIf1_base = pay1_base - invested_base;
-      profitIf2_base = pay2_base - invested_base;
-    }
-
+    // Считаем профит
+    const profitIf1_base = pay1_base - invested_base;
+    const profitIf2_base = pay2_base - invested_base;
     const realProfit_base = Math.min(profitIf1_base, profitIf2_base);
     const disbalance_base = Math.abs(pay1_base - pay2_base);
 
     resBox.classList.add('visible');
     
+    // Выводим данные. Обрати внимание, pay2_orig - это полная выплата по К2
     const bet2Html = formatCustom(bet2, curr2) + (curr2 !== baseSymbol ? `<div class="stat-converted">≈ ${formatBase(bet2_base)}</div>` : '');
     $('f-bet2').innerHTML = bet2Html + ' <span class="plus">(+' + formatCustom(pay2_orig, curr2) + ')</span>';
     $('f-total').textContent = formatBase(invested_base);
@@ -1310,7 +1296,7 @@
   // ============================================================
   // ИСТОРИЯ
   // ============================================================
-  const STORAGE_KEY = 'arbiter_pro_deals_v8'; 
+  const STORAGE_KEY = 'arbiter_pro_deals_v10'; 
   const MAX_DEALS = 200;
 
   function loadDeals() {
