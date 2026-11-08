@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <title>Arbiter PRO — калькулятор вилок</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -863,7 +864,7 @@
   // ============================================================
   // СОХРАНЕНИЕ ПОЛЕЙ
   // ============================================================
-  const FIELDS_KEY = 'arbiter_fields_v8';
+  const FIELDS_KEY = 'arbiter_fields_v10';
   const inputIds = [
     'global-rate', 
     'a2-bank', 'a2-margin', 'a2-k1', 'a2-comm1', 'a2-k2', 'a2-comm2',
@@ -1180,10 +1181,10 @@
   }
 
   // ============================================================
-  // ФРИБЕТЫ (ИСПРАВЛЕНО)
+  // ФРИБЕТЫ
   // ============================================================
   function calcFree() {
-    const bonus = parseNum($('f-bonus').value); // Сумма фрибета в валюте плеча
+    const bonus = parseNum($('f-bonus').value);
     const type = $('f-type').value;
     const margin = Math.min(20, parseNum($('f-margin').value) || 0);
     const k1 = parseNum($('f-k1').value);
@@ -1216,22 +1217,17 @@
 
     if (k1eff <= 1 || k2eff <= 1) { resBox.classList.remove('visible'); return; }
 
-    // ЧИСТАЯ ВЫПЛАТА ПО ФРИБЕТУ
     let pay1_orig = 0;
     if (type === 'nr') {
-      // Невозвратный: выплата = (сумма * кеф) - сумма
       pay1_orig = (bonus * adjK1 * (1 - comm1 / 100)) - bonus;
     } else {
-      // Возвратный: выплата = сумма * кеф
       pay1_orig = bonus * adjK1 * (1 - comm1 / 100);
     }
     
-    // Переводим выплату в базовую валюту (рубли)
     const pay1_base = toBase(pay1_orig, curr1);
 
-    // Считаем, сколько надо поставить своими, чтобы уравнять ЧИСТУЮ выплату
     const rawBet2_base = pay1_base / k2eff;
-    const bet2_base = Math.round(rawBet2_base / 100) * 100; // Округление до сотен
+    const bet2_base = Math.round(rawBet2_base / 100) * 100;
     const bet2 = fromBase(bet2_base, curr2);
 
     const pay2_orig = bet2 * adjK2 * (1 - comm2 / 100);
@@ -1239,7 +1235,6 @@
 
     const invested_base = bet2_base; 
     
-    // Считаем профит
     const profitIf1_base = pay1_base - invested_base;
     const profitIf2_base = pay2_base - invested_base;
     const realProfit_base = Math.min(profitIf1_base, profitIf2_base);
@@ -1247,7 +1242,6 @@
 
     resBox.classList.add('visible');
     
-    // Выводим данные. Обрати внимание, pay2_orig - это полная выплата по К2
     const bet2Html = formatCustom(bet2, curr2) + (curr2 !== baseSymbol ? `<div class="stat-converted">≈ ${formatBase(bet2_base)}</div>` : '');
     $('f-bet2').innerHTML = bet2Html + ' <span class="plus">(+' + formatCustom(pay2_orig, curr2) + ')</span>';
     $('f-total').textContent = formatBase(invested_base);
@@ -1296,7 +1290,7 @@
   // ============================================================
   // ИСТОРИЯ
   // ============================================================
-  const STORAGE_KEY = 'arbiter_pro_deals_v10'; 
+  const STORAGE_KEY = 'arbiter_pro_deals_v11'; 
   const MAX_DEALS = 200;
 
   function loadDeals() {
